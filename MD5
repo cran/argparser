@@ -1,0 +1,10 @@
+9b745ed8cbe6c19e490348141e018ea3 *COPYING
+fb9668bc70449218b15fd65879fd84dd *DESCRIPTION
+27e1ddf1767f18da0bb8cb17d00172e2 *NAMESPACE
+6829d15f6f4f2d21f6f82c2c5ad8d2b5 *R/argparser.R
+0dd07a8f2a532e5bc92c5294f4b1adaa *inst/round.R
+dccb0047dd7747d37112a5136afa4352 *man/add.argument.Rd
+0e7de1073744902bbd4a7037ca502f80 *man/arg.parser.Rd
+6b1d692ea75a10e789b09b3220cae14f *man/argparser.Rd
+cd42fb5a4c5c16a4df65a60a847ce17c *man/parse.args.Rd
+886924c847bb4a88edb68de6de9e5173 *man/print.arg.parser.Rd

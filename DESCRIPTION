@@ -1,0 +1,17 @@
+Package: argparser
+Type: Package
+Title: Command-line argument parser
+Version: 0.1
+Date: 2013-07-26
+Author: David JH Shih
+Maintainer: David JH Shih <djh.shih@gmail.com>
+Description: Cross-platform command-line argument parser written purely in R
+    with no external dependencies. This package is useful with the Rscript
+    front-end and facilitates turning an R script into an executable script.
+URL: https://bitbucket.org/dshih/argparser
+Depends: methods
+License: GPL (>= 3)
+Packaged: 2014-05-29 17:54:24 UTC; davids
+NeedsCompilation: no
+Repository: CRAN
+Date/Publication: 2014-05-30 01:11:24
