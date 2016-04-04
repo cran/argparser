@@ -36,7 +36,7 @@ add.argument <- function(
 	arg, help,
 	default=NULL, type=NULL, flag=NULL, short=NULL
 ) {
-	warning("Use add_argment() instead: add.argument() is deprecated and will be removed in argparser-0.4.");
+	warning("Use add_argument() instead: add.argument() is deprecated and will be removed in argparser-0.4.");
 	add_argument(parser, arg, help, default, type, flag, short)
 }
 

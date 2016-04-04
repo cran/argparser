@@ -48,6 +48,7 @@ arg_parser <- function(description, name=NULL) {
 	);
 
 	# add default arguments
+	parser <- add_argument(parser, "--", "placeholder", flag=TRUE);
 	parser <- add_argument(parser, "--help", "show this help message and exit", flag=TRUE);
 	parser <- add_argument(parser, "--opts", "RDS file containing argument values", short="-x");
 
@@ -61,8 +62,8 @@ arg_parser <- function(description, name=NULL) {
 #' 
 #' This function supports multiple arguments in a vector. To ensure that the
 #' argument variable type is set correctly, either specify \code{type} directly
-#' or supply \code{default} argument values as a list. Arguments that consume 
-#' more than one values are not supported.
+#' or supply \code{default} argument values as a list. Argument names
+#' that contain dash \code{-} in the stem are converted to \code{_}.
 #' 
 #' @param parser  an \code{arg.parser} object
 #' @param arg     argument name (use no prefix for positional arguments,
@@ -71,10 +72,12 @@ arg_parser <- function(description, name=NULL) {
 #' @param default default value for the argument [default: NA]
 #' @param type    variable type of the argument (which can be inferred from 
 #'                \code{default}); assumed to be \code{character} otherwise
-#' @param nargs   number of arguments (which can be inferred from 
-#'                \code{default}); set to Inf for an indefinite number;
-#'                position arguments must be given before optional arguments
-#'                with an indefinite number of optional arguments
+#' @param nargs   number of argument values (which can be inferred from 
+#'                \code{default}); set to \code{Inf} for an indefinite number;
+#'                an optional argument with an indefinite number of values may
+#'                need to be followed by another optional argument or flag (e.g.
+#'                \code{--}) to separate the indefinite optional argument from
+#'                possible position arguments
 #' @param flag    whether argument is a flag (and does not consume a value)
 #'                [default: FALSE]
 #' @param short   short-form for flags and positional arguments;
@@ -114,13 +117,7 @@ add_argument <- function(
 
 	stopifnot(is(parser, "arg.parser"));
 
-	if (arg %in% c(parser$args)) {
-		stop("Argument ", arg, " has already been defined.");
-	}
-
-	if (arg %in% c(parser$shorts)) {
-		stop("Argument ", arg, " conflicts with an existing argument short-form.");
-	}
+	check_arg_conflict(parser, arg);
 
 	## Set parameters
 	if (is.null(default)) {
@@ -140,11 +137,13 @@ add_argument <- function(
 	}
 
 	# when multiple arguments are being defined, default must be a list!
-
 	# in fact, default should always be a list to support multi-type elements
 	# since it is tedious to wrap all default values in a list,
 	# perform this packaging as necessary 
 	if (!is.list(default)) {
+		if (length(arg) > 1) {
+			stop("When multiple arguments are being defined, `default` must be a list so that inadvertent typecasting does not occur");
+		}
 		default <- list(default);
 	}
 
@@ -189,6 +188,13 @@ add_argument <- function(
 	parser$shorts <- c(parser$shorts, short);
 	# remove duplicate short-form arguments (remove the later ones)
 	parser$shorts[duplicated(parser$shorts, fromLast=FALSE)] <- NA;
+
+
+	# Additional error checking
+
+	if (any(is.req.arg & !is.finite(nargs))) {
+		stop("Positional arguments cannot have an indefinite number of argument values");
+	}
 
 	parser
 }
@@ -237,6 +243,8 @@ print.arg.parser <- function(x, ...) {
 	if (sum(parser$is.flag) > 0) {
 		message("flags:");
 		for (i in which(parser$is.flag)) {
+			# skip special flag
+			if (parser$args[i] == "--") next;
 			if (is.na(parser$shorts[i])) {
 				arg.name <- parser$args[i];
 			} else {
@@ -320,7 +328,7 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 
 	argv <- preprocess_argv(argv, parser);
 
-	## Extract flag arguments
+	## Extract flag arguments, ignoring special flag
 	arg.flags <- parser$args[parser$is.flag];
 	# any non-zero, non-NA numeric value will be converted to TRUE
 	# "FALSE", "False", and "false" are converted to FALSE
@@ -356,11 +364,17 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 	i <- match("--opts", argv);
 	if (!is.na(i)) {
 		opts <- readRDS(argv[i+1]);
-		idx <- match(names(opts), names(x));
+
+		# remove special arguments
+		opts <- opts[! names(opts) %in% c("opts", "help")];
+
+		# match the sanitized argument names
+		idx <- match(sanitize_arg_names(names(opts)), sanitize_arg_names(names(x)));
+
 		if (any(is.na(idx))) {
 			stop("Extra arguments supplied in OPTS file (", paste(setdiff(names(opts), names(x)), collapse=", "), ").");
 		}
-		x[match(names(opts), names(x))] <- opts;
+		x[idx] <- opts;
 	}
 
 	## Extract optional arguments (each of which is a tuple of (arg, value))
@@ -391,10 +405,12 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 	args.req.nargs <- parser$nargs[parser$is.req.arg];
 	if (length(x) < length(args.req)) {
 		print(parser);
-		stop("Missing required arguments (", paste(setdiff(args.req, x), collapse=", "), ").");
+		stop(sprintf("Missing required arguments: expecting %d values but got (%s).",
+			length(args.req), paste(x, collapse=", ")));
 	} else if (length(x) > length(args.req)) {
 		print(parser);
-		stop("Extra arguments supplied (", paste(x[!x %in% args.req], collapse=", "), ").");
+		stop(sprintf("Extra arguments supplied: expecting %d values but got (%s).",
+			length(args.req), paste(x, collapse=", ")));
 	} else if (length(args.req) > 0) {
 		names(x) <- args.req;
 		# convert type of extracted value
@@ -405,7 +421,23 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 	# append argument values
 	values <- c(values, x);
 
+	names(values) <- sanitize_arg_names(names(values));
+
 	values
+}
+
+# sanitize argument name
+sanitize_arg_names <- function(x) {
+	# replace '-' with '_' except at the first two elements
+	unlist(mapply(
+		function(x, y) {
+			paste0(x, y, collapse="")
+		},
+		substr(x, 1, 2),
+		gsub("-", "_", substr(x, 3, nchar(x)), fixed=TRUE),
+		USE.NAMES = FALSE,
+		SIMPLIFY = FALSE
+	))
 }
 
 # Preprocess argument vector
@@ -441,13 +473,15 @@ preprocess_argv <- function(argv, parser) {
 
 			idx <- match(argv[i], parser$arg);
 			nargs <- parser$nargs[idx];
+
 			if (!is.finite(nargs)) {
-				# consume all values up to the next argument label
+				# determine number of arguments supplied
+				# will later consume all values up to the next argument label
 				# NB  required arguments may be consumed:
-				#     they should be placed in front of a optional argument
-				#     with an indefinite number of argument values
+				#     need to insert an optional argument or flag (e.g. "--")
+				#     after an argument with an indefinite number of values
 				next.arg <- i + 1;
-				while (!idx.labels[next.arg] && next.arg < length(argv)) {
+				while (next.arg <= length(argv) && !idx.labels[next.arg]) {
 					next.arg <- next.arg + 1;
 				}
 				nargs <- next.arg - i - 1;
@@ -482,5 +516,25 @@ convert_type <- function(object, class, nargs) {
 		stopifnot(!is.finite(nargs) || length(object) == nargs);
 	}
 	as(object, class)
+}
+
+check_arg_conflict <- function(parser, arg) {
+	args.new.clean <- sanitize_arg_names(arg);
+	args.clean <- sanitize_arg_names(parser$args);
+	idx <- args.new.clean %in% args.clean;
+
+	if (any(idx)) {
+		ridx <- args.clean %in% args.new.clean;
+		stop(
+			"Argument(s) conlicts with an existing argument:\n  ",
+			paste(arg[idx], collapse=", "), " conflicts with ",
+			paste(parser$args[ridx], collapse=", ")
+		);
+	}
+
+	if (any(arg %in% parser$shorts)) {
+		stop("Argument(s) conflicts with an existing argument short-form: ",
+			paste(arg[arg %in% parser$shorts], collapse=", "));
+	}
 }
 

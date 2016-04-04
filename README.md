@@ -6,11 +6,13 @@ front-end and facilitates turning an R script into an executable script.
 
 ### History ###
 
+* v0.4 (in progress)
+       *Incompatibility*: '-' in argument names are substitute by '_'
+
 * v0.3 Added support for multi-valued arguments
 
 * v0.2 Function names change
-       Incompatibility is introduced (already!), since '.' is replaced with '_' 
-       in function names, as per Hadley Wickham's request.
+       *Incompatibility*: '.' in function names are replaced with '_' 
 
 * v0.1 Initial release
 
@@ -63,7 +65,7 @@ Then, set the R script as executable and execute (Linux only).
 
     $ chmod +x round.R
     
-		# Print the help message
+    # Print the help message
     $ ./round.R -h
 
 Alternatively, run the script using Rscript (Linux or Windows).
