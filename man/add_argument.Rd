@@ -4,8 +4,16 @@
 \alias{add_argument}
 \title{Add an argument to a parser.}
 \usage{
-add_argument(parser, arg, help, default = NULL, type = NULL, nargs = NULL,
-  flag = NULL, short = NULL)
+add_argument(
+  parser,
+  arg,
+  help,
+  default = NULL,
+  type = NULL,
+  nargs = NULL,
+  flag = NULL,
+  short = NULL
+)
 }
 \arguments{
 \item{parser}{an \code{arg.parser} object}
@@ -28,7 +36,8 @@ need to be followed by another optional argument or flag (e.g.
 possible position arguments}
 
 \item{flag}{whether argument is a flag (and does not consume a value)
-[default: FALSE]}
+[default: FALSE]; during argument parsing, a flag argument 
+is FALSE by default if it is not set}
 
 \item{short}{short-form for flags and positional arguments;
 short-forms can be assigned automatically based on the first
@@ -71,4 +80,3 @@ p <- add_argument(p,
 print(p)
 
 }
-

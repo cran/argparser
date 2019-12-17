@@ -4,8 +4,15 @@
 \alias{add.argument}
 \title{Add an argument to a parser.}
 \usage{
-add.argument(parser, arg, help, default = NULL, type = NULL, flag = NULL,
-  short = NULL)
+add.argument(
+  parser,
+  arg,
+  help,
+  default = NULL,
+  type = NULL,
+  flag = NULL,
+  short = NULL
+)
 }
 \arguments{
 \item{parser}{an \code{arg.parser} object}
@@ -35,4 +42,3 @@ an \code{arg.parser} object with the argument added
 \description{
 This function is deprecated. Use \code{add_argument} instead.
 }
-

@@ -19,4 +19,3 @@ At the command line, we would use the \code{--help} or \code{-help} flag
 to print the help message:
 \code{$ script --help}
 }
-

@@ -4,12 +4,14 @@
 \alias{arg_parser}
 \title{Create an argument parser.}
 \usage{
-arg_parser(description, name = NULL)
+arg_parser(description, name = NULL, hide.opts = FALSE)
 }
 \arguments{
 \item{description}{description of the program}
 
 \item{name}{name of the program}
+
+\item{hide.opts}{hide the \code{--opts} argument}
 }
 \value{
 a new \code{arg.parser} object
@@ -18,8 +20,12 @@ a new \code{arg.parser} object
 This function creates an \code{arg.parser} object. It infers the program 
 name from the file name of the invoked script.
 }
+\details{
+The argument parser will be created by default with two arguments:
+\code{--help} and \code{--opts}. The latter argument can be used for
+loading a list of argument values that are saved in a RDS file.
+}
 \examples{
 p <- arg_parser("A test program")
 
 }
-

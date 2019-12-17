@@ -21,23 +21,31 @@ NULL
 #'
 #' This function creates an \code{arg.parser} object. It infers the program 
 #' name from the file name of the invoked script.
+#'
+#' The argument parser will be created by default with two arguments:
+#' \code{--help} and \code{--opts}. The latter argument can be used for
+#' loading a list of argument values that are saved in a RDS file.
 #' 
 #' @param description  description of the program
 #' @param name         name of the program
+#' @param hide.opts    hide the \code{--opts} argument
 #' @return a new \code{arg.parser} object
 #' @export
 #'
 #' @examples
 #' p <- arg_parser("A test program")
 #'
-arg_parser <- function(description, name=NULL) {
+arg_parser <- function(description, name=NULL, hide.opts=FALSE) {
 
 	# set default name
 	if (is.null(name)) {
 		# extract file name from command arguments, which will be empty 
 		# if the program is not invoked as a script
 		prefix <- "--file=";
-		name <- sub(prefix, "", grep(paste(prefix, "(.+)", sep=""), commandArgs(), value=TRUE));
+		name <- basename(sub(prefix, "",
+			grep(paste(prefix, "(.+)", sep=""), commandArgs(), value=TRUE)
+		));
+		
 	}
 	if (length(name) == 0) name <- "<script>";
 
@@ -50,7 +58,9 @@ arg_parser <- function(description, name=NULL) {
 	# add default arguments
 	parser <- add_argument(parser, "--", "placeholder", flag=TRUE);
 	parser <- add_argument(parser, "--help", "show this help message and exit", flag=TRUE);
-	parser <- add_argument(parser, "--opts", "RDS file containing argument values", short="-x");
+	if (!hide.opts) {
+		parser <- add_argument(parser, "--opts", "RDS file containing argument values", short="-x");
+	}
 
 	parser
 }
@@ -79,7 +89,8 @@ arg_parser <- function(description, name=NULL) {
 #'                \code{--}) to separate the indefinite optional argument from
 #'                possible position arguments
 #' @param flag    whether argument is a flag (and does not consume a value)
-#'                [default: FALSE]
+#'                [default: FALSE]; during argument parsing, a flag argument 
+#'                is FALSE by default if it is not set
 #' @param short   short-form for flags and positional arguments;
 #'                short-forms can be assigned automatically based on the first
 #'                character of the argument name, unless a conflict arises with
@@ -136,6 +147,8 @@ add_argument <- function(
 		nargs <- ifelse(flag, 0, 1);
 	}
 
+	## Error checking
+
 	# when multiple arguments are being defined, default must be a list!
 	# in fact, default should always be a list to support multi-type elements
 	# since it is tedious to wrap all default values in a list,
@@ -154,6 +167,12 @@ add_argument <- function(
 	stopifnot(length(arg) == length(type));
 	stopifnot(length(arg) == length(flag));
 	stopifnot(length(arg) == length(short));
+
+	# flags cannot have user-specified default argument value
+	# the default value of flag will be FALSE
+	if (any(flag & !is.na(default))) {
+		stop("Flags cannot have default value specified");
+	}
 
 	## Append new argument
 	parser$args <- c(parser$args, arg);
@@ -199,6 +218,107 @@ add_argument <- function(
 	parser
 }
 
+# Pretty print.
+#
+# Pretty print a string with line wrap to stderr.
+# @param x   character vector that will be collapsed on a space
+# @param con connection object
+pprint <- function(x, con = stderr(), ...) {
+	writeLines(strwrap(paste(x, collapse=" "), ...), con);
+}
+
+#' Space string.
+#'
+#' @param n  number of spaces
+#' @return a character string containing \code{n} spaces
+spaces <- function(n) {
+	paste0(rep(" ", n), collapse="")
+}
+
+#' Extract label and help strings from parser.
+#'
+#' @param parser  \code{arg.parser} object
+#' @return a list containing a \code{reg.args}, \code{flags}, and
+#'         \code{opt.args} list, which each containg a \code{label}
+#'         string and a \code{help} string
+show_arg_labels <- function(parser) {
+	req.args <- lapply(which(parser$is.req.arg),
+		function(i) {
+			list(
+				label = parser$args[i],
+				help = parser$helps[i]
+			)
+		}
+	);
+
+	# skip special flag
+	flags <- lapply(which(parser$is.flag & parser$args != "--"),
+		function(i) {
+			if (is.na(parser$shorts[i])) {
+				arg.name <- parser$args[i];
+			} else {
+				arg.name <- paste(parser$shorts[i], parser$args[i], sep=", ");
+			}
+
+			list(
+				label = arg.name,
+				help = make_arg_help(parser, i)
+			)
+		}
+	);
+
+	opt.args <- lapply(which(parser$is.opt.arg),
+		function(i) {
+			if (is.na(parser$shorts[i])) {
+				arg.name <- parser$args[i];
+			} else {
+				arg.name <- paste(parser$shorts[i], parser$args[i], sep=", ");
+			}
+			#arg.name <- paste(arg.name, toupper(sub("^-+", "", parser$args[i])));
+			
+			list(
+				label = arg.name,
+				help = make_arg_help(parser, i)
+			)
+		}
+	);
+
+	list(
+		req.args = req.args, flags = flags, opt.args = opt.args
+	)
+}
+
+# Left pad string with spaces.
+#
+# @param x  character vector
+# @param n  target width
+pad_to <- function(x, width) {
+	d <- width - nchar(x);
+	if (d > 0) {
+		paste0(x, spaces(d))
+	} else {
+		x
+	}
+}
+
+# Pretty print labels.
+#
+# @param x  a list containing label and help character vectors
+pprint_label <- function(x, indent, width) {
+	# insert indent
+	if (width == 0) {
+		# print new line instead of pad
+		pprint(x$label, indent=indent);
+		# indent the subsequent lines to the next level
+		prefix <- spaces(indent + 6);
+		pprint(x$help, initial = prefix, prefix = prefix)
+	} else {
+		# pad labels to fixed width
+		label <- pad_to(x$label, width);
+		pprint(x$help, initial = paste0(spaces(indent), label), prefix = spaces(width + indent))
+	}
+}
+
 #' Print the help message for an arg.parser.
 #'
 #' This function prints the help message.
@@ -214,61 +334,72 @@ add_argument <- function(
 print.arg.parser <- function(x, ...) {
 	
 	parser <- x;
+
+	# number of indent spaces before label
+	indent <- 2;
+
+	# number of padding spaces after argument label
+	padding <- 2;
+
+	# maximum label length before inserting help message on next line
+	max.len <- 40;
 	
 	# print usage
 	opt.args <- parser$args[parser$is.opt.arg];
-	message("usage: ", parser$name, " ",
+	usage <- c("usage: ", parser$name, " ",
+		# flags
 		paste(sub("^(.*)$", "[\\1]", parser$args[parser$is.flag]), collapse=" "),
 		" ",
+		# optional arguments
 		paste(sub("^(.*)$", "[\\1 ", opt.args),
 			toupper(sub("^--(.*)$", "\\1]", opt.args)),
 			sep="", collapse=" "),
 		" ",
-		paste(parser$args[parser$is.req.arg], collapse=" "),
-		"\n"
+		# positional arguments
+		paste(parser$args[parser$is.req.arg], collapse=" ")
 	);
+	pprint(usage, exdent=7);
+	pprint("");
+
 	# print description
-	message(parser$description, "\n");
+	pprint(c(parser$description, "\n"));
+	pprint("");
+
+	labs <- show_arg_labels(parser);
+
+	lab.lens <- unlist(lapply(labs, function(xs) {
+		lapply(xs, function(x) {
+			nchar(x$label)
+		})
+	}));
+	max.lab.len <- max(lab.lens);
+
+	# padding width
+	pwidth <- max.lab.len + padding;
+	if (indent + pwidth > max.len) {
+		pwidth <- 0;
+	}
 
 	# print position arguments
-	if (sum(parser$is.req.arg) > 0) {
-		message("positional arguments:");
-		for (i in which(parser$is.req.arg)) {
-			message("  ", parser$args[i], "\t\t\t", parser$helps[i]);
-		}
+	if (length(labs$req.args) > 0) {
+		pprint("positional arguments:");
+		lapply(labs$req.args, pprint_label, indent=indent, width=pwidth);
+		pprint("");
 	}
-	message("");
 
 	# print flags
-	if (sum(parser$is.flag) > 0) {
-		message("flags:");
-		for (i in which(parser$is.flag)) {
-			# skip special flag
-			if (parser$args[i] == "--") next;
-			if (is.na(parser$shorts[i])) {
-				arg.name <- parser$args[i];
-			} else {
-				arg.name <- paste(parser$shorts[i], parser$args[i], sep=", ");
-			}
-			arg.help <- make_arg_help(parser, i);
-			message("  ", arg.name, "\t\t\t", arg.help);
-		}
+	if (length(labs$flags) > 0) {
+		pprint("flags:");
+		lapply(labs$flags, pprint_label, indent=indent, width=pwidth);
+		pprint("");
 	}
-	message("");
 
+	# print position arguments
 	# print optional arguments
-	if (sum(parser$is.opt.arg) > 0) {
-		message("optional arguments:");
-		for (i in which(parser$is.opt.arg)) {
-			if (is.na(parser$shorts[i])) {
-				arg.name <- parser$args[i];
-			} else {
-				arg.name <- paste(parser$shorts[i], parser$args[i], sep=", ");
-			}
-			arg.name <- paste(arg.name, toupper(sub("^-+", "", parser$args[i])));
-			arg.help <- make_arg_help(parser, i);
-			message("  ", arg.name, "\t\t\t", arg.help);
-		}
+	if (length(labs$opt.args) > 0) {
+		pprint("optional arguments:");
+		lapply(labs$opt.args, pprint_label, indent=indent, width=pwidth);
+		pprint("");
 	}
 }
 
@@ -372,7 +503,7 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 		idx <- match(sanitize_arg_names(names(opts)), sanitize_arg_names(names(x)));
 
 		if (any(is.na(idx))) {
-			stop("Extra arguments supplied in OPTS file (", paste(setdiff(names(opts), names(x)), collapse=", "), ").");
+			stop("Extra arguments supplied in OPTS file: (", paste(setdiff(names(opts), names(x)), collapse=", "), ").");
 		}
 		x[idx] <- opts;
 	}
@@ -405,12 +536,12 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 	args.req.nargs <- parser$nargs[parser$is.req.arg];
 	if (length(x) < length(args.req)) {
 		print(parser);
-		stop(sprintf("Missing required arguments: expecting %d values but got (%s).",
-			length(args.req), paste(x, collapse=", ")));
+		stop(sprintf("Missing required arguments: expecting %d values but got %d values: (%s).",
+			length(args.req), length(x), paste(x, collapse=", ")));
 	} else if (length(x) > length(args.req)) {
 		print(parser);
-		stop(sprintf("Extra arguments supplied: expecting %d values but got (%s).",
-			length(args.req), paste(x, collapse=", ")));
+		stop(sprintf("Extra arguments supplied: expecting %d values but got %d values: (%s).",
+			length(args.req), length(x), paste(x, collapse=", ")));
 	} else if (length(args.req) > 0) {
 		names(x) <- args.req;
 		# convert type of extracted value
@@ -440,8 +571,26 @@ sanitize_arg_names <- function(x) {
 	))
 }
 
+# split concatenated short-form argument names
+split_short_forms <- function(x) {
+	tokens <- strsplit(x, "")[[1]];
+	# first token is "-"
+	# re-create short-form names
+	paste0("-", tokens)
+}
+
+
 # Preprocess argument vector
 preprocess_argv <- function(argv, parser) {
+
+	## Extract concacenated short-forms into separate tokens
+	# to avoid matching negative numbers, disallow the first token to be digit
+	idx <- grep("^-[^0-9-][^-]+", argv);
+	expanded <- lapply(idx, function(i) split_short_forms(argv[i]));
+	# put expanded arguments into their original position
+	argvl <- as.list(argv);
+	argvl[idx] <- expanded;
+	argv <- unlist(argvl);
 
 	## Replace short-forms with long-forms
 	ind <- match(argv, parser$shorts);
@@ -449,15 +598,15 @@ preprocess_argv <- function(argv, parser) {
 	argv[ind.valid] <- parser$args[ind[ind.valid]];
 
 	# determine whether each argument is an argument label
-	idx.labels <- grepl("^-", argv);
+	idx.labels <- grepl("^--", argv);
 
 	## Check that each argument label is defined in the parser
 	arg.idx <- match(argv[idx.labels], parser$arg);
 	arg.idx.na <- is.na(arg.idx);
 	if (any(arg.idx.na)) {
 		for (i in which(arg.idx.na)) {
-			message("Argument ", argv[idx.labels][i],
-				" is not a defined optional argument or flag");
+			message("Argument '", argv[idx.labels][i],
+				"' is not a defined optional argument or flag");
 		}
 		stop("Undefined argument labels supplied");
 	}
@@ -508,13 +657,29 @@ preprocess_argv <- function(argv, parser) {
 # Convert `object` into class `class` using as and handle multi-element value
 convert_type <- function(object, class, nargs) {
 	if (nargs > 1 && is.character(object) && length(object) == 1) {
-		# x is a character vector containing a delimiter: it is a multi-element value
+		# `object` is a character vector containing a delimiter: it is a multi-element value
 		# strip away possible enclosing brackets
 		object <- gsub("\\((.+)\\)", "\\1", object);
 		# split the values
 		object <- strsplit(object, getOption("argparser.delim"), fixed=TRUE)[[1]];
 		stopifnot(!is.finite(nargs) || length(object) == nargs);
 	}
+
+	# specifically test for the most common input error:
+	# conversion of non-numeric string to numeric
+	# canCoerce does not help here because canCoerce("a", "numeric") == TRUE
+	if (class == "integer") {
+		if (! all(grepl("^(([0-9]+)|-?Inf)$", object))) {
+			stop(sprintf("Invalid argument value: expecting integer but got: (%s).", 
+				paste(object, collapse=", ")))
+		}
+	} else if (class == "numeric") {
+		if (! all(grepl("^(([0-9]+)|([0-9]*\\.[0-9]+)|-?Inf)$", object))) {
+			stop(sprintf("Invalid argument value: expecting numeric but got: (%s).",
+				paste(object, collapse=", ")))
+		}
+	}
+	
 	as(object, class)
 }
 

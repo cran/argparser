@@ -17,4 +17,3 @@ a new \code{arg.parser} object
 \description{
 This function is deprecated. Use \code{arg_parser} instead.
 }
-

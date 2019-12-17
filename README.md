@@ -6,15 +6,24 @@ front-end and facilitates turning an R script into an executable script.
 
 ### History ###
 
-* v0.4 (in progress)
-       *Incompatibility*: '-' in argument names are substitute by '_'
+v0.5.1 (release candidate)
 
-* v0.3 Added support for multi-valued arguments
+- Negative numbers can now be parsed correctly as argument values
+- Help message printing is prettier
+- Concatenated short-form flags are now split into individual flags
+- To be released on CRAN pending additional testing
 
-* v0.2 Function names change
-       *Incompatibility*: '.' in function names are replaced with '_' 
+v0.4 Simplify argument names
 
-* v0.1 Initial release
+**Incompatibility**: '-' in argument names are substitute by '_'
+
+v0.3 Added support for multi-valued arguments
+
+v0.2 Function names change
+
+**Incompatibility**: '.' in function names are replaced with '_' 
+
+v0.1 Initial release
 
 
 ### Dependencies ###
@@ -26,7 +35,7 @@ front-end and facilitates turning an R script into an executable script.
 
 Clone the repository, build the documentation with roxygen2, then install.
 
-    $ git clone https://bitbucket.org/dshih/argparser.git
+    $ git clone https://bitbucket.org/djhshih/argparser.git
     $ cd argparser
     $ R
 

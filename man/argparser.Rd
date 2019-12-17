@@ -3,7 +3,6 @@
 \docType{package}
 \name{argparser}
 \alias{argparser}
-\alias{argparser-package}
 \title{Command-line argument parser}
 \description{
 \code{argparser} provides functions for parsing command-line arguments.
@@ -19,4 +18,3 @@ To execute the script, invoke \code{Rscript}.
 Alternatively on Linux, insert a shebang on the first line
 (\code{#!/usr/bin/env Rscript}) and \code{chmod +x} the script,
 }
-
