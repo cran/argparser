@@ -1,4 +1,5 @@
+prime	demo command-line program prime checking
 round	demo command-line program for rounding floating point numbers
 round-magrittr	demo command-line program with magrittr integration to simplify code
 sum	demo command-line program for summing a set numbers
-sum2 demo command-line program for summing two numbers
+sum2	demo command-line program for summing two numbers

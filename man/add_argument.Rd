@@ -26,7 +26,8 @@ add_argument(
 \item{default}{default value for the argument [default: NA]}
 
 \item{type}{variable type of the argument (which can be inferred from 
-\code{default}); assumed to be \code{character} otherwise}
+\code{default}); assumed to be \code{character} otherwise.
+See details for more information.}
 
 \item{nargs}{number of argument values (which can be inferred from 
 \code{default}); set to \code{Inf} for an indefinite number;
@@ -55,8 +56,14 @@ the modified object.
 \details{
 This function supports multiple arguments in a vector. To ensure that the
 argument variable type is set correctly, either specify \code{type} directly
-or supply \code{default} argument values as a list. Argument names
-that contain dash \code{-} in the stem are converted to \code{_}.
+or supply \code{default} argument values as a list. 
+Custom types are supported by defining a new class and a S4 method for
+\code{coerce}, see the examples section.
+}
+\note{
+Dashes \code{-} that occur in the stem of the argument names
+(e.g. --argument-name) will be converted to underscores \code{_} 
+(e.g. argument_name) in the name of the corresponding variable.
 }
 \examples{
 p <- arg_parser("A text file modifying program")
@@ -78,5 +85,28 @@ p <- add_argument(p,
 
 # Print the help message
 print(p)
+
+# Example of custom type, using the example from pythons argparse
+setClass("perfectSquare")
+setMethod("coerce", c(from = "ANY", to = "perfectSquare"),
+    function(from, to) {
+      from <- as.numeric(from)
+      if (!all.equal(from, as.integer(from))) {
+        stop("Type error: ", from, " is not an integer!")
+      }
+      sqt <- sqrt(from)
+      if (sqt != as.integer(sqt)) {
+         stop("Type error: ", from, " is not a perfect square!")
+      }
+      from
+    }
+)
+
+p2 <- arg_parser("Perfect square checker")
+p2 <- add_argument(p2, arg = c("--perfect-square"), 
+                   help = "A perfect square integer",
+                   type = "perfectSquare")
+
+parse_args(p2, c("--perfect-square", 144))
 
 }

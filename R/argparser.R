@@ -70,10 +70,16 @@ arg_parser <- function(description, name=NULL, hide.opts=FALSE) {
 #' This function adds an argument to an \code{arg.parser} object and returns 
 #' the modified object.
 #' 
+#' @details
 #' This function supports multiple arguments in a vector. To ensure that the
 #' argument variable type is set correctly, either specify \code{type} directly
-#' or supply \code{default} argument values as a list. Argument names
-#' that contain dash \code{-} in the stem are converted to \code{_}.
+#' or supply \code{default} argument values as a list. 
+#' Custom types are supported by defining a new class and a S4 method for
+#' \code{coerce}, see the examples section.
+#'
+#' @note Dashes \code{-} that occur in the stem of the argument names
+#' (e.g. --argument-name) will be converted to underscores \code{_} 
+#' (e.g. argument_name) in the name of the corresponding variable.
 #' 
 #' @param parser  an \code{arg.parser} object
 #' @param arg     argument name (use no prefix for positional arguments,
@@ -81,7 +87,8 @@ arg_parser <- function(description, name=NULL, hide.opts=FALSE) {
 #' @param help    help description for the argument
 #' @param default default value for the argument [default: NA]
 #' @param type    variable type of the argument (which can be inferred from 
-#'                \code{default}); assumed to be \code{character} otherwise
+#'                \code{default}); assumed to be \code{character} otherwise.
+#'                See details for more information.
 #' @param nargs   number of argument values (which can be inferred from 
 #'                \code{default}); set to \code{Inf} for an indefinite number;
 #'                an optional argument with an indefinite number of values may
@@ -119,6 +126,29 @@ arg_parser <- function(description, name=NULL, hide.opts=FALSE) {
 #'
 #' # Print the help message
 #' print(p)
+#'
+#' # Example of custom type, using the example from pythons argparse
+#' setClass("perfectSquare")
+#' setMethod("coerce", c(from = "ANY", to = "perfectSquare"),
+#'     function(from, to) {
+#'       from <- as.numeric(from)
+#'       if (!all.equal(from, as.integer(from))) {
+#'         stop("Type error: ", from, " is not an integer!")
+#'       }
+#'       sqt <- sqrt(from)
+#'       if (sqt != as.integer(sqt)) {
+#'          stop("Type error: ", from, " is not a perfect square!")
+#'       }
+#'       from
+#'     }
+#' )
+#' 
+#' p2 <- arg_parser("Perfect square checker")
+#' p2 <- add_argument(p2, arg = c("--perfect-square"), 
+#'                    help = "A perfect square integer",
+#'                    type = "perfectSquare")
+#'
+#' parse_args(p2, c("--perfect-square", 144))
 #' 
 add_argument <- function(
 	parser,
@@ -180,9 +210,9 @@ add_argument <- function(
 
 	# infer type based on the default values (original default variable), 
 	# whenever available
-	type[!is.na(default)] <- unlist(lapply(default, class));
+	type[!is.na(default)] <- unlist(lapply(default[!is.na(default)], class));
 	# infer number of arguments based on default values
-	nargs[!is.na(default)] <- unlist(lapply(default, length));
+	nargs[!is.na(default)] <- unlist(lapply(default[!is.na(default)], length));
 
 	parser$defaults <- c(parser$defaults, default);
 	parser$types <- c(parser$types, type);
@@ -239,7 +269,7 @@ spaces <- function(n) {
 #'
 #' @param parser  \code{arg.parser} object
 #' @return a list containing a \code{reg.args}, \code{flags}, and
-#'         \code{opt.args} list, which each containg a \code{label}
+#'         \code{opt.args} list, which each containing a \code{label}
 #'         string and a \code{help} string
 show_arg_labels <- function(parser) {
 	req.args <- lapply(which(parser$is.req.arg),
@@ -517,7 +547,7 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 	if (length(arg.idx) > 0) {
 		# extract values following the optional argument label
 		x[match(argv[arg.idx], arg.opt)] <- argv[arg.idx+1];
-		# convert type of extraced values; x is now a list
+		# convert type of extracted values; x is now a list
 		x <- mapply(convert_type, 
 			object=x, class=arg.opt.types, nargs=arg.opt.nargs,
 			SIMPLIFY=FALSE);
@@ -656,6 +686,8 @@ preprocess_argv <- function(argv, parser) {
 
 # Convert `object` into class `class` using as and handle multi-element value
 convert_type <- function(object, class, nargs) {
+	if (is.na(object)) return(NA);
+
 	if (nargs > 1 && is.character(object) && length(object) == 1) {
 		# `object` is a character vector containing a delimiter: it is a multi-element value
 		# strip away possible enclosing brackets
@@ -669,12 +701,18 @@ convert_type <- function(object, class, nargs) {
 	# conversion of non-numeric string to numeric
 	# canCoerce does not help here because canCoerce("a", "numeric") == TRUE
 	if (class == "integer") {
-		if (! all(grepl("^(([0-9]+)|-?Inf)$", object))) {
+		# NB  When using scientific notation, it is difficult to check whether
+		#     the number of decimal places exceeds the exponent,
+		#     so we will allow some non-integers in scientific notation
+		#     e.g. 1.2e3 is an integer while 1.23e1 is not, but it is difficult
+		#          to determine this with regex alone
+		#	    
+		if (! all(grepl("^(([-+]?((([0-9]+)(\\.?[0-9]+[eE][+]?[0-9]+)?)|Inf))|NA|NaN)$", object))) {
 			stop(sprintf("Invalid argument value: expecting integer but got: (%s).", 
 				paste(object, collapse=", ")))
 		}
 	} else if (class == "numeric") {
-		if (! all(grepl("^(([0-9]+)|([0-9]*\\.[0-9]+)|-?Inf)$", object))) {
+		if (! all(grepl("^(([-+]?(((([0-9]+)|([0-9]*\\.[0-9]+))([eE][-+]?[0-9]+)?)|Inf))|NA|NaN)$", object))) {
 			stop(sprintf("Invalid argument value: expecting numeric but got: (%s).",
 				paste(object, collapse=", ")))
 		}

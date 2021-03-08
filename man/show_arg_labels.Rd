@@ -11,7 +11,7 @@ show_arg_labels(parser)
 }
 \value{
 a list containing a \code{reg.args}, \code{flags}, and
-        \code{opt.args} list, which each containg a \code{label}
+        \code{opt.args} list, which each containing a \code{label}
         string and a \code{help} string
 }
 \description{

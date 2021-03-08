@@ -1,8 +1,8 @@
 Package: argparser
 Type: Package
 Title: Command-Line Argument Parser
-Version: 0.6
-Date: 2019-12-16
+Version: 0.7.1
+Date: 2021-03-08
 Author: David J. H. Shih
 Maintainer: David J. H. Shih <djh.shih@gmail.com>
 Description: Cross-platform command-line argument parser written purely in R
@@ -11,9 +11,11 @@ Description: Cross-platform command-line argument parser written purely in R
 URL: https://bitbucket.org/djhshih/argparser
 BugReports: https://bitbucket.org/djhshih/argparser/issues
 Depends: methods
+Suggests: testthat (>= 3.0.0)
 License: GPL (>= 3)
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.1
+Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2019-12-17 03:17:58 UTC; davids
+Packaged: 2021-03-08 08:36:11 UTC; davids
 Repository: CRAN
-Date/Publication: 2019-12-17 06:20:03 UTC
+Date/Publication: 2021-03-08 08:50:02 UTC

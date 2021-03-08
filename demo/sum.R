@@ -11,7 +11,7 @@ p <- add_argument(p, "--numbers", help="numbers to add",
 p <- add_argument(p, "--logsumexp", help="calculate sum in exponentiated space instead", flag=TRUE)
 p <- add_argument(p, "--subset",
 	help="start and end (1-based) indices of subset of numbers to add",
-	default=c(1, Inf));
+	type="integer", default=c(1, Inf));
 
 # Parse the command line arguments
 argv <- parse_args(p)

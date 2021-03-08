@@ -1,27 +1,35 @@
 # README #
 
 `argparser` is a cross-platform command-line argument parser for R, written in R,
-with no external dependencies. This package is useful with the Rscript
+with no external dependencies. This package is useful with the `Rscript`
 front-end and facilitates turning an R script into an executable script.
 
 ### History ###
 
-v0.5.1 (release candidate)
+v0.7
+
+- Missing argument values are now handled correctly
+
+v0.6
+
+**Incompatibility**: values of numeric and integer arguments are now
+checked for validity due to feature request (issue #16)
+
+v0.5.1
 
 - Negative numbers can now be parsed correctly as argument values
 - Help message printing is prettier
 - Concatenated short-form flags are now split into individual flags
-- To be released on CRAN pending additional testing
 
 v0.4 Simplify argument names
 
-**Incompatibility**: '-' in argument names are substitute by '_'
+**Incompatibility**: `-` in argument names are substitute by `_`
 
 v0.3 Added support for multi-valued arguments
 
 v0.2 Function names change
 
-**Incompatibility**: '.' in function names are replaced with '_' 
+**Incompatibility**: `.` in function names are replaced with `_`
 
 v0.1 Initial release
 
@@ -47,7 +55,7 @@ Clone the repository, build the documentation with roxygen2, then install.
 
 ### Usage ###
 
-Create a R script (e.g. round.R) with a shebang line (Linux only).
+Create a R script (e.g. `round.R`) with a shebang line (Linux only).
 
 Import the argparser library, create a parser, populate the parser with arguments
 and parse the command line arguments.
@@ -77,7 +85,7 @@ Then, set the R script as executable and execute (Linux only).
     # Print the help message
     $ ./round.R -h
 
-Alternatively, run the script using Rscript (Linux or Windows).
+Alternatively, run the script using `Rscript` (Linux or Windows).
 
     $ Rscript round.R 3.141
     # 3
