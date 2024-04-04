@@ -1,22 +1,3 @@
-#' Command-line argument parser
-#'
-#' \code{argparser} provides functions for parsing command-line arguments.
-#'
-#' To use the parser,
-#' \enumerate{
-#' \item create an \code{arg.parser} object with \code{\link{arg_parser}};
-#' \item add arguments to the parser with \code{\link{add_argument}};
-#' \item call \code{\link{parse_args}} to parse the command line arguments.
-#' }
-#' To execute the script, invoke \code{Rscript}.
-#' Alternatively on Linux, insert a shebang on the first line
-#' (\code{#!/usr/bin/env Rscript}) and \code{chmod +x} the script,
-#' 
-#' @import methods
-#' @docType package
-#' @name argparser
-NULL
-
 #' Create an argument parser.
 #'
 #' This function creates an \code{arg.parser} object. It infers the program 
@@ -453,7 +434,10 @@ make_arg_help <- function(parser, i) {
 #'
 #' @param parser  an \code{arg.parser} object
 #' @param argv    a character vector to parse (arguments and values should 
-#'                already be split by whitespace)
+#'                already be split by whitespace);
+#'                if \code{NULL}, values will be obtained from \code{argv} if
+#'                \code{argv} exists in the global scope, or from
+#'                \code{commandArgs(trailingOnly=TRUE)}.
 #' @return a list with argument values
 #' @export
 #'
@@ -483,9 +467,24 @@ make_arg_help <- function(parser, i) {
 #' #$ ./script.R --opts arguments.rds
 #' } 
 #'
-parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
+parse_args <- function(parser, argv=NULL) {
 	stopifnot(is(parser, "arg.parser"));
 	values <- list();
+
+	# obtain argument vector from global environment (littler)
+	# or from commandArgs (R)
+	if (is.null(argv)) {
+		if (exists("argv", envir = .GlobalEnv)) {
+			argv0 <- get("argv", envir = .GlobalEnv);
+			if (is.character(argv0)) {
+				argv <- argv0;
+			}
+		}
+		# failed to get valid argv from global environment: argv is still null
+		if (is.null(argv)) {
+			argv <- commandArgs(trailingOnly=TRUE);
+		}
+	}
 
 	argv <- preprocess_argv(argv, parser);
 
@@ -587,18 +586,9 @@ parse_args <- function(parser, argv=commandArgs(trailingOnly=TRUE)) {
 	values
 }
 
-# sanitize argument name
+# strip possible leading - and replace '-' with '_'
 sanitize_arg_names <- function(x) {
-	# replace '-' with '_' except at the first two elements
-	unlist(mapply(
-		function(x, y) {
-			paste0(x, y, collapse="")
-		},
-		substr(x, 1, 2),
-		gsub("-", "_", substr(x, 3, nchar(x)), fixed=TRUE),
-		USE.NAMES = FALSE,
-		SIMPLIFY = FALSE
-	))
+	gsub("-", "_", sub("^-+", "", x), fixed=TRUE)
 }
 
 # split concatenated short-form argument names
@@ -686,7 +676,7 @@ preprocess_argv <- function(argv, parser) {
 
 # Convert `object` into class `class` using as and handle multi-element value
 convert_type <- function(object, class, nargs) {
-	if (is.na(object)) return(NA);
+	if (any(is.na(object))) return(NA);
 
 	if (nargs > 1 && is.character(object) && length(object) == 1) {
 		# `object` is a character vector containing a delimiter: it is a multi-element value

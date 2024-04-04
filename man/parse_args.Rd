@@ -4,13 +4,16 @@
 \alias{parse_args}
 \title{Parse arguments with a parser.}
 \usage{
-parse_args(parser, argv = commandArgs(trailingOnly = TRUE))
+parse_args(parser, argv = NULL)
 }
 \arguments{
 \item{parser}{an \code{arg.parser} object}
 
 \item{argv}{a character vector to parse (arguments and values should 
-already be split by whitespace)}
+already be split by whitespace);
+if \code{NULL}, values will be obtained from \code{argv} if
+\code{argv} exists in the global scope, or from
+\code{commandArgs(trailingOnly=TRUE)}.}
 }
 \value{
 a list with argument values
